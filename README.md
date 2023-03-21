@@ -21,3 +21,9 @@ If you would like to cite us, the bibtex is as follows.
     booktitle={Under review at AMIA Symposium 2023},
     year={2023}
     }
+
+This code uses bits and pieces from the following repositories:
+
+https://github.com/milesial/Pytorch-UNet
+
+https://github.com/WangYueFt/dgcnn
