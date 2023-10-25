@@ -14,7 +14,7 @@ class CutOut(nn.Module):
         batch_size = x.shape[0]
         mask = (1-self.eps)*torch.ones(x.shape,dtype=torch.float32,device=self.device)
         lambdaVal = self.beta.sample([batch_size]).to(self.device)
-        cutSizes = torch.squeeze(x.shape[2]*(torch.sqrt(1-lambdaVal))).type(torch.int64)
+        cutSizes = torch.squeeze(112*torch.ones(lambdaVal.shape)).type(torch.int64)#torch.squeeze(x.shape[2]*(torch.sqrt(1-lambdaVal))).type(torch.int64)
         start_idx_vals = torch.rand([batch_size],device=self.device)
         start_idxs = torch.squeeze((start_idx_vals*(x.shape[2] - cutSizes)).type(torch.int64))
         for i in range(batch_size):
