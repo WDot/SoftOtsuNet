@@ -17,7 +17,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import CosineAnnealingLR
 from data_fitzpatrick import Fitzpatrick17k
-from model import EfficientNetB4
+#from model import EfficientNetB4
+from model_convnext import ConvNext
 from mask_model import MaskModel
 import numpy as np
 from torch.utils.data import DataLoader
@@ -34,6 +35,9 @@ import json
 from torch.nn.parallel import DistributedDataParallel as DDP
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from stable_adamw import StableAdamWUnfused
+from cutmix import CutMix
+from mixup import MixUp
 
 
 def _init_():
@@ -81,7 +85,7 @@ def train(args, io):
 
     device = 'cuda'
 
-    model = EfficientNetB4(train_dataset.num_classes,device=device).to(device)
+    model = ConvNext(train_dataset.num_classes,device=device).to(device)
     if not args.baseline:
         mask_model = MaskModel(device=device).to(device)
 
@@ -92,6 +96,12 @@ def train(args, io):
     if args.baseline and args.cutout:
         cutout = CutOut(device=device)
         cutout.cuda()
+    elif args.baseline and args.cutmix:
+        cutmix = CutMix(device=device)
+        cutmix.cuda()
+    elif args.baseline and args.mixup:
+        mixup = MixUp(device=device)
+        mixup.cuda()
 
     sys.stdout.flush()
 
@@ -101,15 +111,19 @@ def train(args, io):
     print("Let's use", torch.cuda.device_count(), "GPUs!")
 
     print("Use SGD")
-    if not args.baseline:
-        opt = optim.SGD([
-                    {'params': model.parameters()},
-                    {'params': mask_model.parameters()}
-                ], lr=args.lr, momentum=args.momentum, weight_decay=1e-4, nesterov=True)
-    else:
-        opt = optim.SGD([
-                    {'params': model.parameters()},
-                ], lr=args.lr, momentum=args.momentum, weight_decay=1e-4, nesterov=True)
+    #if not args.baseline:
+    #    opt = optim.SGD([
+    #                {'params': model.parameters()},
+    #                {'params': mask_model.parameters()}
+    #            ], lr=args.lr, momentum=args.momentum, weight_decay=1e-4, nesterov=True)
+    #else:
+    #    opt = optim.SGD([
+    #                {'params': model.parameters()},
+    #            ], lr=args.lr, momentum=args.momentum, weight_decay=1e-4, nesterov=True)
+    opt = StableAdamWUnfused([
+                {'params': model.parameters()}
+                #{'params': mask_model.parameters()}
+            ], lr=args.lr)
 
     scheduler = CosineAnnealingLR(opt, args.epochs, eta_min=args.lr)
     
@@ -139,6 +153,7 @@ def train(args, io):
             noise = noise.to(device)
             data= data.to(device)
             labels = labels.to(device)
+            #print(labels.shape)
             batch_size = data.size()[0]
             opt.zero_grad()
             with torch.cuda.amp.autocast():
@@ -156,6 +171,11 @@ def train(args, io):
                         metamask = torch.reshape((torch.rand([data.shape[0]],dtype=torch.float32,device=device) > 0.5),[-1,1,1,1]).type(torch.float32)
                         xCutout = data * mask + (1- mask) * noise
                         x = xCutout * metamask + (1-metamask)*data
+                    elif args.cutmix:
+                        x,labels = cutmix(data,labels)
+                        #print(labels.shap)
+                    elif args.mixup:
+                        x,labels = mixup(data,labels)
                     else:
                         x = data
                     outputs = model(x)
@@ -343,6 +363,8 @@ if __name__ == "__main__":
     parser.add_argument('--baseline', action='store_true')
     parser.add_argument('--randaug', action='store_true')
     parser.add_argument('--cutout',action='store_true')
+    parser.add_argument('--cutmix',action='store_true')
+    parser.add_argument('--mixup',action='store_true')
     parser.add_argument('--image_path',type=str)
     parser.add_argument('--label_path',type=str)
 
