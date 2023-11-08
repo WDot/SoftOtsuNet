@@ -18,7 +18,7 @@ If you would like to cite us, the bibtex is as follows.
     softotsunet,
     title={Unsupervised SoftOtsuNet Augmentation for Clinical Dermatology Classifieres},
     author={Miguel Dominguez and John T Finnell},
-    booktitle={Under review at AMIA Symposium 2023},
+    booktitle={AMIA Symposium 2023},
     year={2023}
     }
 
